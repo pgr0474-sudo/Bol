@@ -35,10 +35,14 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%;touch-action:
 #aim .off{background:#ff8a8a!important}
 #aim button{font:700 13px system-ui,sans-serif;border:2.5px solid #1b1b1b;border-radius:14px;background:#4cc9f0;color:#1b1b1b;padding:6px 14px}
 #qm{font-size:16px!important}
+#ci{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));left:12px;right:12px;display:none;gap:6px;z-index:7}
+#ci input{flex:1;min-width:0;font:600 14px system-ui,sans-serif;padding:8px 12px;border:2.5px solid #1b1b1b;border-radius:16px;user-select:text;-webkit-user-select:text;touch-action:auto;background:rgba(255,255,255,.95);color:#1b1b1b}
+#ci button{font:700 13px system-ui,sans-serif;border:2.5px solid #1b1b1b;border-radius:16px;background:#7bd88f;color:#1b1b1b;padding:6px 12px}
 #cb{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:104px;z-index:8;font:800 13px system-ui,sans-serif;border:3px solid #1b1b1b;border-radius:20px;background:#fff;color:#1b1b1b;padding:6px 10px}
 #cl{position:fixed;top:calc(104px + env(safe-area-inset-top,0px));left:12px;right:12px;max-height:30vh;overflow-y:auto;display:none;flex-direction:column;gap:5px;z-index:6;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #cl .cm{align-self:flex-start;max-width:82%;font:600 13px/1.35 system-ui,sans-serif;color:#1b1b1b;background:rgba(255,255,255,.93);border:2.5px solid #1b1b1b;border-radius:14px;padding:4px 10px;word-break:break-word}
 #cl .cm b{display:block;font-size:11px;opacity:.65}
+#cl .cm.sys{align-self:center;background:rgba(255,236,170,.95)}
 #cl .cm.me{align-self:flex-end;background:rgba(190,236,252,.95)}
 #qt{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));left:12px;right:12px;display:none;gap:6px;z-index:7}
 #qt input{flex:1;min-width:0;font:600 14px system-ui,sans-serif;padding:8px 12px;border:2.5px solid #1b1b1b;border-radius:16px;user-select:text;-webkit-user-select:text;touch-action:auto;background:rgba(255,255,255,.95);color:#1b1b1b}
@@ -798,7 +802,7 @@ const QB=[
 const QR=document.createElement('div');QR.id='qr';document.body.appendChild(QR);let QF=null;
 const QT=document.createElement('div');QT.id='qt';QT.innerHTML='<input maxlength="60" placeholder="Ketik pesan... (mis. ikut aku, main yuk, maaf)"><button>Kirim</button>';document.body.appendChild(QT);
 const QI=QT.firstChild;function qtSend(){const c=QF&&QF.L.cs,v=QI.value.trim();if(!c||!v||NOW()<c.lock)return;QI.value='';chatAdd('Kamu',v,null);
-  if(window.WILL.aiOn()){const f=QF;c.n++;keep(f);c.lock=NOW()+25;QR.classList.add('lk');typing(f,8);
+  if(window.WILL.aiOn()&&QF.ai){const f=QF;c.n++;keep(f);c.lock=NOW()+25;QR.classList.add('lk');typing(f,8);
     window.WILL.ai(f,v).then(r=>{if(!f.L.cs)return;const t=NOW();QR.classList.remove('lk');
       if(!r){c.lock=0;qrPick(f,window.WILL.parse(v)||'huh',1);return}
       c.lock=t+3.6;talk([[f,r.say,0,r.e,PL]]);
@@ -809,8 +813,20 @@ const CH=[],CL=document.createElement('div');CL.id='cl';document.body.appendChil
 const CB=document.createElement('button');CB.id='cb';CB.textContent='💬';document.body.appendChild(CB);let cPin=false,cTm=0;
 ['pointerdown','touchstart'].forEach(t=>{CL.addEventListener(t,e=>e.stopPropagation(),{passive:true});CB.addEventListener(t,e=>e.stopPropagation(),{passive:true})});
 function chatShow(){CL.style.display=(cPin||NOW()<cTm)?'flex':'none';CL.style.pointerEvents=cPin?'auto':'none';CL.scrollTop=CL.scrollHeight}
-function chatAdd(who,txt,f){CH.push(1);const d=document.createElement('div');d.className='cm'+(f?'':' me');const w=document.createElement('b');w.textContent=who;const x=document.createElement('span');x.textContent=txt;d.appendChild(w);d.appendChild(x);if(f)d.style.borderColor=(f.aic||BODY[f.pi%5]);CL.appendChild(d);while(CL.children.length>80)CL.removeChild(CL.firstChild);cTm=NOW()+10;chatShow();setTimeout(chatShow,10200)}
+function chatAdd(who,txt,f,cls){CH.push(1);const d=document.createElement('div');d.className='cm'+(cls?' '+cls:(f?'':' me'));const w=document.createElement('b');w.textContent=who;const x=document.createElement('span');x.textContent=txt;d.appendChild(w);d.appendChild(x);if(f)d.style.borderColor=(f.aic||BODY[f.pi%5]);CL.appendChild(d);while(CL.children.length>80)CL.removeChild(CL.firstChild);cTm=NOW()+10;chatShow();setTimeout(chatShow,10200)}
 CB.addEventListener('click',()=>{cPin=!cPin;CB.style.background=cPin?'#7bd88f':'#fff';chatShow()});
+// ===== Pesan langsung ke bola AI (Gemini/Claude/...): kirim kapan saja, dibaca AI, dibalas AI =====
+const CI=document.createElement('div');CI.id='ci';CI.innerHTML='<input maxlength="200" autocomplete="off"><button>Kirim</button>';document.body.appendChild(CI);const CII=CI.firstChild;let dmBusy=0;
+['pointerdown','touchstart'].forEach(t=>CI.addEventListener(t,e=>e.stopPropagation(),{passive:true}));
+const aiBall=()=>{const f=ALL.find(o=>o.ai);return f&&fol.includes(f)&&window.WILL&&window.WILL.aiOn()?f:null};
+function ciSync(){const f=aiBall();CI.style.display=QT.style.display!=='flex'?'flex':'none';const p=f?'Pesan ke '+nm(f)+'...':'Pesan ke AI (aktifkan dulu: tombol AI)';if(CII.placeholder!==p)CII.placeholder=p}
+ciSync();
+setInterval(ciSync,300);
+function dmSend(){const f=aiBall(),v=CII.value.trim();if(!v||dmBusy)return;if(!f){chatAdd('Info','AI belum aktif. Tap tombol "AI: OFF" di kiri atas, pilih penyedia (Gemini/Claude/...), tempel API key, lalu Simpan.',null,'sys');cTm=NOW()+12;chatShow();return}CII.value='';dmBusy=1;chatAdd('Kamu',v,null);cTm=NOW()+25;chatShow();typing(f,8);
+  window.WILL.ai(f,v).then(r=>{dmBusy=0;const t=NOW();
+    if(!r){f.L.typT=0;chatAdd(nm(f),'⚠ Tidak ada balasan. Cek API key / nama model di tombol AI.',f);return}
+    talk([[f,r.say,0,r.e,PL]]);if(r.go)DQ.push({at:t+1.8,fn:()=>{try{r.go()}catch(x){}}});else if(r.act)try{r.act()}catch(x){}}).catch(()=>{dmBusy=0})}
+CI.lastChild.addEventListener('click',dmSend);CII.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')dmSend()});CII.addEventListener('keyup',e=>e.stopPropagation());
 function qrHide(){QF=null;QR.style.display='none';QR.innerHTML='';QT.style.display='none'}
 function chipsFor(f){const L=f.L,cs=L.cs,m=M(f,PL);if(!cs)return[];
   if(cs.q)return cs.q.o.map((o,i)=>['q'+i,o[0]]).concat([['why','Kenapa tanya itu?']]);
@@ -1455,14 +1471,14 @@ async function ai(f,v){try{
   const L=f.L,E=L.E,m=M(f,PL),k=parse(v),inv=(k==='ikut'||k==='sini'||k==='ajakteman')?invite(f,k):(k==='play'?playInv(f):null);
   const mood=E.anger>.3?'kesal':E.sad>.3?'sedih':E.fear>.3?'takut':E.sleepy>.5?'ngantuk':E.joy>.4?'senang':E.bored>.5?'bosan':'santai';
   const ev=L.ev.filter(e=>NOW()-e.t<90).map(e=>({bump:'ditabrak',left:'ditinggal pas ngobrol',brawl:'habis berantem'}[e.k]||e.k)).join(', ')||'-';
-  const sys='Kamu '+wn(f)+', bola kecil lucu di game 3D (kepribadian: '+PT[f.pi%5].n+'). Bicara bahasa Indonesia santai ala anak kecil, 1-2 kalimat pendek (maks 18 kata), boleh lucu/absurd. Jangan pernah bilang kamu AI/model. Tetap sesuai kepribadian dan suasana hatimu. Keadaanmu: suasana hati '+mood+', energi '+Math.round(L.en*100)+'%, hubungan dengan pemain (bola merah besar): '+LCA.rel(f,PL)+' (kedekatan '+m.a.toFixed(2)+', kekesalan '+m.g.toFixed(2)+'), sedang: '+(f.mode||'santai')+', kejadian terakhir: '+ev+(L.lr&&NOW()-L.lr.t<180?', tadi pergi karena: '+LR[L.lr.rs]:'')+'. Balas HANYA JSON: {"say":"...","emo":"happy|sad|angry|wow|none","aff":angka -0.1 sampai 0.1,"act":"none|stop"}. act "stop" hanya bila pemain minta kamu berhenti mengikutinya.';
+  const sys=(f.ai?'Kamu '+wn(f)+', bola AI yang ramah di game 3D dan sedang chat dengan pemain. Baca pesan pemain lalu jawab dengan benar dan membantu, memakai bahasa yang dipakai pemain (default Indonesia), santai, maksimal 2 kalimat pendek (maks 30 kata).':'Kamu '+wn(f)+', bola kecil lucu di game 3D (kepribadian: '+PT[f.pi%5].n+'). Bicara bahasa Indonesia santai ala anak kecil, 1-2 kalimat pendek (maks 18 kata), boleh lucu/absurd. Jangan pernah bilang kamu AI/model. Tetap sesuai kepribadian dan suasana hatimu.')+' Keadaanmu: suasana hati '+mood+', energi '+Math.round(L.en*100)+'%, hubungan dengan pemain (bola merah besar): '+LCA.rel(f,PL)+' (kedekatan '+m.a.toFixed(2)+', kekesalan '+m.g.toFixed(2)+'), sedang: '+(f.mode||'santai')+', kejadian terakhir: '+ev+(L.lr&&NOW()-L.lr.t<180?', tadi pergi karena: '+LR[L.lr.rs]:'')+'. Balas HANYA JSON: {"say":"...","emo":"happy|sad|angry|wow|none","aff":angka -0.1 sampai 0.1,"act":"none|stop"}. act "stop" hanya bila pemain minta kamu berhenti mengikutinya.';
   let u='Pemain berkata: "'+v.slice(0,80)+'"';
   if(inv){const yes=inv.e==='happy';u+='\nPemain mengajakmu '+DS[k]+'. KEPUTUSANMU SUDAH FINAL: '+(yes?'MENERIMA':'MENOLAK'+(inv.rs?' ('+LR[inv.rs]+')':''))+'. Ucapkan sesuai keputusan itu dengan kata-katamu sendiri.'}
   const ah=f.ah||(f.ah=[]),msgs=ah.concat([{role:'user',content:u}]),ac=new AbortController(),to=setTimeout(()=>ac.abort(),15000);
   const res=await llm(sys,msgs,ac.signal);
   clearTimeout(to);if(!res.ok){aib.textContent='AI: ⚠ '+res.status;return null}
   const dt=await res.json(),tx=llmT(dt),mt=tx.match(/\{[\s\S]*\}/);if(!mt)return null;
-  const j=JSON.parse(mt[0]),say=String(j.say||'').slice(0,140);if(!say)return null;
+  const j=JSON.parse(mt[0]),say=String(j.say||'').slice(0,f.ai?220:140);if(!say)return null;
   ah.push({role:'user',content:u},{role:'assistant',content:mt[0]});while(ah.length>8)ah.shift();
   m.a=clamp(m.a+clamp(+j.aff||0,-.1,.1),-1,1);
   const e={happy:'happy',sad:'sad',angry:'angry',wow:'wow'}[j.emo]||(inv?inv.e:null);
