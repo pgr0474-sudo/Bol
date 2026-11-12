@@ -823,8 +823,8 @@ function ciSync(){const f=aiBall();CI.style.display=QT.style.display!=='flex'?'f
 ciSync();
 setInterval(ciSync,300);
 function dmSend(){const f=aiBall(),v=CII.value.trim();if(!v||dmBusy)return;if(!f){chatAdd('Info','AI belum aktif. Tap tombol "AI: OFF" di kiri atas, pilih penyedia (Gemini/Claude/...), tempel API key, lalu Simpan.',null,'sys');cTm=NOW()+12;chatShow();return}CII.value='';dmBusy=1;chatAdd('Kamu',v,null);cTm=NOW()+25;chatShow();typing(f,8);
-  window.WILL.ai(f,v).then(r=>{dmBusy=0;const t=NOW();
-    if(!r){f.L.typT=0;chatAdd(nm(f),'⚠ Tidak ada balasan. Cek API key / nama model di tombol AI.',f);return}
+  window.__aiErr='';window.WILL.ai(f,v).then(r=>{dmBusy=0;const t=NOW();
+    if(!r){f.L.typT=0;const er=String(window.__aiErr||'');let h='Cek API key / nama model di tombol AI.';if(/Failed to fetch|Network|Load failed|aborted/i.test(er))h='Koneksi gagal/diblokir. Jangan buka lewat halaman artifact Claude; pakai GitHub Pages, dan cek internet.';else if(/API key|API_KEY|UNAUTHENTICATED|PERMISSION/i.test(er))h='API key tidak valid / belum diizinkan.';else if(/^429/.test(er))h='Kuota API habis, coba lagi nanti.';else if(/^404/.test(er))h='Nama model tidak ditemukan, ganti di panel AI.';chatAdd(nm(f),'⚠ '+h+(er?' ['+er.slice(0,110)+']':''),f,'sys');cTm=NOW()+20;chatShow();return}
     talk([[f,r.say,0,r.e,PL]]);if(r.go)DQ.push({at:t+1.8,fn:()=>{try{r.go()}catch(x){}}});else if(r.act)try{r.act()}catch(x){}}).catch(()=>{dmBusy=0})}
 CI.lastChild.addEventListener('click',dmSend);CII.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')dmSend()});CII.addEventListener('keyup',e=>e.stopPropagation());
 function qrHide(){QF=null;QR.style.display='none';QR.innerHTML='';QT.style.display='none'}
@@ -1424,7 +1424,7 @@ const isOn=()=>CFG.on&&(CFG.p==='custom'||!!KEY);
 const llmM=()=>CFG.m||PV[CFG.p].m;
 function llm(sys,msgs,sig){const p=CFG.p,m=llmM(),J={'content-type':'application/json'};
   if(p==='anthropic')return fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:sig,headers:Object.assign({},J,{'x-api-key':KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}),body:JSON.stringify({model:m,max_tokens:220,system:sys,messages:msgs})});
-  if(p==='gemini')return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent',{method:'POST',signal:sig,headers:Object.assign({},J,{'x-goog-api-key':KEY}),body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:msgs.map(x=>({role:x.role==='assistant'?'model':'user',parts:[{text:x.content}]})),generationConfig:{maxOutputTokens:800}})});
+  if(p==='gemini')return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(m)+':generateContent?key='+encodeURIComponent(KEY),{method:'POST',signal:sig,headers:J,body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:msgs.map(x=>({role:x.role==='assistant'?'model':'user',parts:[{text:x.content}]})),generationConfig:Object.assign({maxOutputTokens:1000,responseMimeType:'application/json'},/2\.5-flash/.test(m)?{thinkingConfig:{thinkingBudget:0}}:{})})});
   const u=String(CFG.u||PV[p].u).replace(/\/+$/,''),h=Object.assign({},J);if(KEY)h.authorization='Bearer '+KEY;
   const b={model:m,messages:[{role:'system',content:sys}].concat(msgs)};if(p==='openai')b.max_completion_tokens=800;else b.max_tokens=300;
   return fetch(u+'/chat/completions',{method:'POST',signal:sig,headers:h,body:JSON.stringify(b)})}
@@ -1476,13 +1476,13 @@ async function ai(f,v){try{
   if(inv){const yes=inv.e==='happy';u+='\nPemain mengajakmu '+DS[k]+'. KEPUTUSANMU SUDAH FINAL: '+(yes?'MENERIMA':'MENOLAK'+(inv.rs?' ('+LR[inv.rs]+')':''))+'. Ucapkan sesuai keputusan itu dengan kata-katamu sendiri.'}
   const ah=f.ah||(f.ah=[]),msgs=ah.concat([{role:'user',content:u}]),ac=new AbortController(),to=setTimeout(()=>ac.abort(),15000);
   const res=await llm(sys,msgs,ac.signal);
-  clearTimeout(to);if(!res.ok){aib.textContent='AI: ⚠ '+res.status;return null}
-  const dt=await res.json(),tx=llmT(dt),mt=tx.match(/\{[\s\S]*\}/);if(!mt)return null;
+  clearTimeout(to);if(!res.ok){aib.textContent='AI: ⚠ '+res.status;let eb='';try{eb=(await res.text()).replace(/\s+/g,' ').slice(0,160)}catch(e){}window.__aiErr=res.status+' '+eb;return null}
+  const dt=await res.json(),tx=llmT(dt),mt=tx.match(/\{[\s\S]*\}/);if(!mt){window.__aiErr='Balasan kosong/bukan JSON: '+String(tx).slice(0,80);return null}
   const j=JSON.parse(mt[0]),say=String(j.say||'').slice(0,f.ai?220:140);if(!say)return null;
   ah.push({role:'user',content:u},{role:'assistant',content:mt[0]});while(ah.length>8)ah.shift();
   m.a=clamp(m.a+clamp(+j.aff||0,-.1,.1),-1,1);
   const e={happy:'happy',sad:'sad',angry:'angry',wow:'wow'}[j.emo]||(inv?inv.e:null);
-  return{say,e,go:inv?inv.go:null,act:(!inv&&j.act==='stop')?()=>reply(f,'stop').go():null}}catch(x){return null}}
+  return{say,e,go:inv?inv.go:null,act:(!inv&&j.act==='stop')?()=>reply(f,'stop').go():null}}catch(x){window.__aiErr=String(x&&x.message||x);return null}}
 return{invite,follow,leave,decide,global,mode,commit,parse,reply,ai,aiOn}})();
 window.WILL=WILL;window.WILLMODE=WILL.mode;
 window.__lca=LCA.debug;window.__lcaTeach=LCA.teach;
